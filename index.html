@@ -43,7 +43,7 @@
         document.body.appendChild(renderer.domElement);
 
         // Water plane
-        const waterGeometry = new THREE.PlaneGeometry(100, 100, 32, 32);
+        const waterGeometry = new THREE.PlaneGeometry(20, 20, 32, 32); // Smaller plane for better mobile performance
         const waterMaterial = new THREE.MeshPhongMaterial({
             color: 0x0066cc,
             shininess: 100,
@@ -72,13 +72,13 @@
         // Fish class
         class Fish {
             constructor() {
-                const geometry = new THREE.ConeGeometry(0.5, 1, 32);
+                const geometry = new THREE.ConeGeometry(0.3, 0.8, 32);
                 const material = new THREE.MeshPhongMaterial({ color: 0xff9900 });
                 this.mesh = new THREE.Mesh(geometry, material);
                 this.mesh.position.set(
-                    Math.random() * 80 - 40,
-                    -2,
-                    Math.random() * 80 - 40
+                    Math.random() * 10 - 5,
+                    -1,
+                    Math.random() * 10 - 5
                 );
                 this.mesh.rotation.x = Math.PI / 2;
                 scene.add(this.mesh);
@@ -91,37 +91,46 @@
             fishArray.push(new Fish());
         }
 
-        camera.position.z = 20;
-        camera.position.y = 15;
+        camera.position.set(0, 10, 10);
         camera.lookAt(0, 0, 0);
 
         // Mouse/touch interaction
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
+        let isDragging = false;
 
-        function onMove(event) {
+        function updateMousePosition(event) {
             event.preventDefault();
             const rect = renderer.domElement.getBoundingClientRect();
-            mouse.x = ((event.clientX || event.touches[0].clientX) - rect.left) / rect.width * 2 - 1;
-            mouse.y = -((event.clientY || event.touches[0].clientY) - rect.top) / rect.height * 2 + 1;
+            const clientX = event.type.includes('touch') ? event.touches[0].clientX : event.clientX;
+            const clientY = event.type.includes('touch') ? event.touches[0].clientY : event.clientY;
+            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        }
+
+        function onMove(event) {
+            updateMousePosition(event);
+            isDragging = true;
 
             // Water ripple effect
+            raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObject(water);
             if (intersects.length > 0) {
                 const point = intersects[0].point;
-                for (let i = 0; i < waterGeometry.vertices.length; i++) {
-                    const vertex = waterGeometry.vertices[i];
+                const vertices = waterGeometry.attributes.position.array;
+                for (let i = 0; i < vertices.length; i += 3) {
+                    const vertex = new THREE.Vector3(vertices[i], vertices[i + 1], vertices[i + 2]);
                     const dist = vertex.distanceTo(point);
-                    if (dist < 5) {
-                        vertex.z = Math.sin(dist * 2 - Date.now() * 0.005) * 0.5;
+                    if (dist < 2) {
+                        vertices[i + 2] = Math.sin(dist * 5 - Date.now() * 0.005) * 0.3;
                     }
                 }
-                waterGeometry.verticesNeedUpdate = true;
+                waterGeometry.attributes.position.needsUpdate = true;
             }
         }
 
         function onClick(event) {
-            event.preventDefault();
+            updateMousePosition(event);
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(fishArray.map(f => f.mesh));
             if (intersects.length > 0) {
@@ -133,16 +142,26 @@
             }
         }
 
-        renderer.domElement.addEventListener('mousemove', onMove);
-        renderer.domElement.addEventListener('touchmove', onMove);
-        renderer.domElement.addEventListener('click', onClick);
-        renderer.domElement.addEventListener('touchstart', onClick);
+        function onStart(event) {
+            isDragging = false;
+            onMove(event);
+        }
+
+        function onEnd(event) {
+            if (!isDragging) onClick(event);
+        }
+
+        renderer.domElement.addEventListener('mousemove', onMove, false);
+        renderer.domElement.addEventListener('mousedown', onStart, false);
+        renderer.domElement.addEventListener('mouseup', onEnd, false);
+        renderer.domElement.addEventListener('touchstart', onStart, false);
+        renderer.domElement.addEventListener('touchmove', onMove, false);
+        renderer.domElement.addEventListener('touchend', onEnd, false);
 
         // Animation
         function animate() {
             requestAnimationFrame(animate);
-            waterGeometry.verticesNeedUpdate = true;
-            renderer.render(scene, camera);
+            renderer.render(scene, scene);
         }
         animate();
 
@@ -152,6 +171,9 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        // Convert water geometry to BufferGeometry for better performance
+        water.geometry = new THREE.BufferGeometry().fromGeometry(waterGeometry);
     </script>
 </body>
 </html>
