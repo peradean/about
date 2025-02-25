@@ -1,179 +1,164 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Water with Fish Proverbs</title>
+    <title>Happy Birthday Dan Animation</title>
     <style>
         body {
             margin: 0;
-            overflow: hidden;
+            padding: 0;
             background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
         canvas {
-            width: 100%;
-            height: 100vh;
             display: block;
-        }
-        .proverb-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            display: none;
-            font-family: Arial, sans-serif;
-            max-width: 80%;
-            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div id="proverb" class="proverb-overlay"></div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <canvas id="canvas"></canvas>
+
     <script>
-        // Scene setup
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-        // Water plane
-        const waterGeometry = new THREE.PlaneGeometry(20, 20, 32, 32); // Smaller plane for better mobile performance
-        const waterMaterial = new THREE.MeshPhongMaterial({
-            color: 0x0066cc,
-            shininess: 100,
-            transparent: true,
-            opacity: 0.8,
-            side: THREE.DoubleSide
-        });
-        const water = new THREE.Mesh(waterGeometry, waterMaterial);
-        water.rotation.x = -Math.PI / 2;
-        scene.add(water);
-
-        // Lighting
-        const light = new THREE.PointLight(0xffffff, 1, 100);
-        light.position.set(0, 10, 0);
-        scene.add(light);
-
-        // Fish array and proverbs
-        const fishArray = [];
-        const proverbs = [
-            "The journey of a thousand miles begins with a single step. - Lao Tzu",
-            "A bird does not sing because it has an answer; it sings because it has a song. - Chinese Proverb",
-            "When the winds of change blow, some build walls while others build windmills. - Chinese Proverb",
-            "A single conversation across the table with a wise man is worth a month's study of books. - Chinese Proverb"
-        ];
-
-        // Fish class
-        class Fish {
+        class Star {
             constructor() {
-                const geometry = new THREE.ConeGeometry(0.3, 0.8, 32);
-                const material = new THREE.MeshPhongMaterial({ color: 0xff9900 });
-                this.mesh = new THREE.Mesh(geometry, material);
-                this.mesh.position.set(
-                    Math.random() * 10 - 5,
-                    -1,
-                    Math.random() * 10 - 5
-                );
-                this.mesh.rotation.x = Math.PI / 2;
-                scene.add(this.mesh);
-                this.proverb = proverbs[Math.floor(Math.random() * proverbs.length)];
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.z = Math.random() * 4;
+                this.speed = 0.1; // Halved from 0.2
             }
-        }
 
-        // Create fish
-        for (let i = 0; i < 5; i++) {
-            fishArray.push(new Fish());
-        }
-
-        camera.position.set(0, 10, 10);
-        camera.lookAt(0, 0, 0);
-
-        // Mouse/touch interaction
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-        let isDragging = false;
-
-        function updateMousePosition(event) {
-            event.preventDefault();
-            const rect = renderer.domElement.getBoundingClientRect();
-            const clientX = event.type.includes('touch') ? event.touches[0].clientX : event.clientX;
-            const clientY = event.type.includes('touch') ? event.touches[0].clientY : event.clientY;
-            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-        }
-
-        function onMove(event) {
-            updateMousePosition(event);
-            isDragging = true;
-
-            // Water ripple effect
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObject(water);
-            if (intersects.length > 0) {
-                const point = intersects[0].point;
-                const vertices = waterGeometry.attributes.position.array;
-                for (let i = 0; i < vertices.length; i += 3) {
-                    const vertex = new THREE.Vector3(vertices[i], vertices[i + 1], vertices[i + 2]);
-                    const dist = vertex.distanceTo(point);
-                    if (dist < 2) {
-                        vertices[i + 2] = Math.sin(dist * 5 - Date.now() * 0.005) * 0.3;
-                    }
+            update() {
+                this.z += this.speed;
+                if (this.z > 4) {
+                    this.z = 0;
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
                 }
-                waterGeometry.attributes.position.needsUpdate = true;
+            }
+
+            draw() {
+                const sx = (this.x - canvas.width/2) / this.z + canvas.width/2;
+                const sy = (this.y - canvas.height/2) / this.z + canvas.height/2;
+                const size = 2 / this.z;
+                
+                ctx.beginPath();
+                ctx.arc(sx, sy, size, 0, Math.PI * 2);
+                ctx.fillStyle = 'white';
+                ctx.fill();
             }
         }
 
-        function onClick(event) {
-            updateMousePosition(event);
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(fishArray.map(f => f.mesh));
-            if (intersects.length > 0) {
-                const fish = fishArray.find(f => f.mesh === intersects[0].object);
-                const proverbDiv = document.getElementById('proverb');
-                proverbDiv.textContent = fish.proverb;
-                proverbDiv.style.display = 'block';
-                setTimeout(() => proverbDiv.style.display = 'none', 3000);
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 5 + 2;
+                this.speedX = Math.random() * 6 - 3;
+                this.speedY = Math.random() * 6 - 3;
+                this.life = 60;
+                this.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life--;
+                this.size *= 0.95;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
-        function onStart(event) {
-            isDragging = false;
-            onMove(event);
+        class PermanentLetter {
+            constructor(char, x, y) {
+                this.char = char;
+                this.x = x;
+                this.y = y;
+                this.glowPhase = Math.random() * Math.PI * 2; // Random starting phase for pulsing
+            }
+
+            draw(timestamp) {
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                
+                // Pulsing glow effect
+                const glow = Math.sin(timestamp * 0.002 + this.glowPhase) * 0.25 + 0.75; // Oscillates between 0.5 and 1
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * glow})`; // Base 50% opacity with pulsing
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillText(this.char, this.x, this.y);
+                ctx.shadowBlur = 0; // Reset shadow
+            }
         }
 
-        function onEnd(event) {
-            if (!isDragging) onClick(event);
-        }
+        const stars = Array(200).fill().map(() => new Star());
+        let particles = [];
+        const message = "HAPPY BIRTHDAY DAN";
+        let letterIndex = 0;
+        let lastTime = 0;
+        const letterInterval = 300;
+        let permanentLetters = [];
+        const letterSpacing = 30; // Reduced from 40 to squish letters together
 
-        renderer.domElement.addEventListener('mousemove', onMove, false);
-        renderer.domElement.addEventListener('mousedown', onStart, false);
-        renderer.domElement.addEventListener('mouseup', onEnd, false);
-        renderer.domElement.addEventListener('touchstart', onStart, false);
-        renderer.domElement.addEventListener('touchmove', onMove, false);
-        renderer.domElement.addEventListener('touchend', onEnd, false);
+        function animate(timestamp) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Animation
-        function animate() {
+            stars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+
+            // Draw permanent letters with timestamp for pulsing
+            permanentLetters.forEach(letter => letter.draw(timestamp));
+
+            if (timestamp - lastTime > letterInterval && letterIndex < message.length) {
+                const x = canvas.width/2 + (letterIndex - message.length/2) * letterSpacing;
+                const y = canvas.height/2;
+                
+                for (let i = 0; i < 20; i++) {
+                    particles.push(new Particle(x, y));
+                }
+
+                ctx.font = 'bold 48px Arial';
+                ctx.fillStyle = 'white';
+                ctx.textAlign = 'center';
+                ctx.fillText(message[letterIndex], x, y);
+
+                permanentLetters.push(new PermanentLetter(message[letterIndex], x, y));
+
+                letterIndex++;
+                lastTime = timestamp;
+            }
+
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
             requestAnimationFrame(animate);
-            renderer.render(scene, scene);
         }
-        animate();
 
-        // Resize handler
+        requestAnimationFrame(animate);
+
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         });
-
-        // Convert water geometry to BufferGeometry for better performance
-        water.geometry = new THREE.BufferGeometry().fromGeometry(waterGeometry);
     </script>
 </body>
 </html>
